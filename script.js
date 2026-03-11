@@ -1,7 +1,7 @@
 // Configuración de gráficas
 const graficas = [
-    { id: 1, nombre: 'Gráfica 1', datafile: 'data.json', img: null },
-    { id: 2, nombre: 'Gráfica 2', datafile: 'grafica_1.json', img: null },
+    { id: 1, nombre: 'Gráfica 1', datafile: 'data1.json', img: null },
+    { id: 2, nombre: 'Gráfica 2', datafile: 'data2.json', img: null },
     { id: 3, nombre: 'Gráfica 3', datafile: 'data3.json', img: null }
 ];
 
