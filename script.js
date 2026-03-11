@@ -32,6 +32,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // Event listeners para los botones del modal
     document.getElementById('saveJsonBtn').addEventListener('click', guardarJsonEditado);
     document.getElementById('toggleAdvanced').addEventListener('change', toggleAdvancedEditor);
+    
+    // Limpiar el player del modal cuando se cierre
+    const viewModal = document.getElementById('viewModal');
+    if (viewModal) {
+        viewModal.addEventListener('hidden.bs.modal', () => {
+            const player = document.getElementById('modalLottiePlayer');
+            if (player) {
+                try {
+                    player.stop();
+                    if (player.src && player.src.startsWith('blob:')) {
+                        URL.revokeObjectURL(player.src);
+                    }
+                    player.src = '';
+                } catch (e) {
+                    console.log('Error limpiando modal player:', e);
+                }
+            }
+        });
+    }
 });
 
 /**
@@ -74,7 +93,9 @@ function crearTarjetaGrafica(grafica) {
                         background="transparent" 
                         speed="1" 
                         loop 
-                        autoplay>
+                        autoplay
+                        renderer="svg"
+                        mode="normal">
                     </lottie-player>
                 </div>
                 
@@ -490,6 +511,74 @@ function abrirEditorJson(graficaId) {
         `;
         simpleFields.appendChild(fotoDiv);
         
+    } else if (graficaId === 4) {
+        // GRÁFICA 4: Campos múltiples + colores
+        const elementos = extraerElementosGrafica4(jsonData);
+        
+        // Crear campo para titulo_1
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'form-group mb-3';
+        titleDiv.innerHTML = `
+            <label class="form-label">📝 ${config4.titulo_1.label}</label>
+            <input type="text" id="titulo_1" class="form-control" value="${elementos.titulo_1 || ''}" />
+        `;
+        simpleFields.appendChild(titleDiv);
+        
+        // Crear campo para caja_texto_1
+        const cajaDiv = document.createElement('div');
+        cajaDiv.className = 'form-group mb-3';
+        cajaDiv.innerHTML = `
+            <label class="form-label">📝 ${config4.caja_texto_1.label}</label>
+            <textarea id="caja_texto_1" class="form-control" rows="4">${elementos.caja_texto_1 || ''}</textarea>
+        `;
+        simpleFields.appendChild(cajaDiv);
+        
+        // Crear campo para color barra_sombra
+        const barraSombraDiv = document.createElement('div');
+        barraSombraDiv.className = 'form-group mb-3';
+        barraSombraDiv.innerHTML = `
+            <label class="form-label">🎨 ${config4.barra_sombra.label}</label>
+            <div class="d-flex gap-2 align-items-center">
+                <input type="color" id="barra_sombra_color" class="form-control form-control-color" value="${elementos.barra_sombra}" style="width: 100px; height: 40px;" />
+                <input type="text" id="barra_sombra_hex" class="form-control" placeholder="#000000" value="${elementos.barra_sombra.toUpperCase()}" />
+            </div>
+        `;
+        simpleFields.appendChild(barraSombraDiv);
+        
+        // Crear campo para color full_barra
+        const fullBarraDiv = document.createElement('div');
+        fullBarraDiv.className = 'form-group mb-3';
+        fullBarraDiv.innerHTML = `
+            <label class="form-label">🎨 ${config4.full_barra.label}</label>
+            <div class="d-flex gap-2 align-items-center">
+                <input type="color" id="full_barra_color" class="form-control form-control-color" value="${elementos.full_barra}" style="width: 100px; height: 40px;" />
+                <input type="text" id="full_barra_hex" class="form-control" placeholder="#000000" value="${elementos.full_barra.toUpperCase()}" />
+            </div>
+        `;
+        simpleFields.appendChild(fullBarraDiv);
+        
+        // Event listeners para sincronizar colores de barra_sombra
+        document.getElementById('barra_sombra_color').addEventListener('change', () => {
+            document.getElementById('barra_sombra_hex').value = document.getElementById('barra_sombra_color').value.toUpperCase();
+        });
+        document.getElementById('barra_sombra_hex').addEventListener('change', () => {
+            const hex = document.getElementById('barra_sombra_hex').value;
+            if (/^#[0-9A-F]{6}$/i.test(hex)) {
+                document.getElementById('barra_sombra_color').value = hex;
+            }
+        });
+        
+        // Event listeners para sincronizar colores de full_barra
+        document.getElementById('full_barra_color').addEventListener('change', () => {
+            document.getElementById('full_barra_hex').value = document.getElementById('full_barra_color').value.toUpperCase();
+        });
+        document.getElementById('full_barra_hex').addEventListener('change', () => {
+            const hex = document.getElementById('full_barra_hex').value;
+            if (/^#[0-9A-F]{6}$/i.test(hex)) {
+                document.getElementById('full_barra_color').value = hex;
+            }
+        });
+        
     } else {
         // GRÁFICAS 1 y 2: Campos estándar (texto + color)
         const { texto, color } = extraerElementosEditables(jsonData);
@@ -573,7 +662,35 @@ function guardarJsonEditado() {
                 // Crear copia del JSON
                 jsonData = JSON.parse(JSON.stringify(jsonData));
                 jsonData = actualizarElementosGrafica3(jsonData, titulo, caja, foto);
-                jsonData = actualizarElementosGrafica4(jsonData, titulo, caja, barraSombra, fullBarra) ;
+                
+            } else if (currentEditingGrafica === 4) {
+                // GRÁFICA 4: Múltiples campos + colores
+                const titulo = document.getElementById('titulo_1').value;
+                const caja = document.getElementById('caja_texto_1').value;
+                const barraSombra = document.getElementById('barra_sombra_hex').value;
+                const fullBarra = document.getElementById('full_barra_hex').value;
+                
+                console.log('Modo simple (Gráfica 4):');
+                console.log('  Título:', titulo);
+                console.log('  Caja:', caja);
+                console.log('  Barra Sombra:', barraSombra);
+                console.log('  Barra Principal:', fullBarra);
+                
+                // Validar que hay valores
+                if (!titulo || !caja) {
+                    messageDiv.innerHTML = '<div class="error-message">✗ Error: Todos los campos de texto son obligatorios</div>';
+                    return;
+                }
+                
+                // Validar colores
+                if (!/^#[0-9A-F]{6}$/i.test(barraSombra) || !/^#[0-9A-F]{6}$/i.test(fullBarra)) {
+                    messageDiv.innerHTML = '<div class="error-message">✗ Error: Códigos de color inválidos</div>';
+                    return;
+                }
+                
+                // Crear copia del JSON
+                jsonData = JSON.parse(JSON.stringify(jsonData));
+                jsonData = actualizarElementosGrafica4(jsonData, titulo, caja, barraSombra, fullBarra);
                 
             } else {
                 // GRÁFICAS 1 y 2: Texto + Color
@@ -632,9 +749,8 @@ function actualizarAnimacionGrafica(graficaId, jsonData) {
     if (graficaId <= cards.length) {
         const player = cards[graficaId - 1].querySelector('lottie-player');
         if (player) {
-            // Pausar y detener el player
+            // Detener completamente el player
             try {
-                player.pause();
                 player.stop();
             } catch (e) {
                 console.log('Player controls not available');
@@ -650,34 +766,27 @@ function actualizarAnimacionGrafica(graficaId, jsonData) {
                 }
             }
             
-            // Cargar directamente el JSON en el player
-            console.log('Actualizar: cargando JSON para gráfica', graficaId);
+            // Crear un nuevo blob URL con el JSON actualizado
+            const jsonString = JSON.stringify(jsonData);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
             
-            if (typeof player.load === 'function') {
-                console.log('Actualizar: usando load() para gráfica', graficaId);
-                player.load(jsonData);
-            } else if (typeof player.setAnimationData === 'function') {
-                console.log('Actualizar: usando setAnimationData() para gráfica', graficaId);
-                player.setAnimationData(jsonData);
-            } else {
-                // Fallback a src assignment con blob
-                const jsonString = JSON.stringify(jsonData);
-                const blob = new Blob([jsonString], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                
-                console.log('Actualizar: usando src assignment para gráfica', graficaId);
-                player.src = url;
-            }
+            console.log('Actualizando animación para gráfica', graficaId);
             
-            // Reproducir después de un delay para que Lottie procese
+            // Asignar el nuevo src
+            player.src = url;
+            player.loop = true;
+            player.autoplay = true;
+            
+            // Forzar recarga después de un pequeño delay
             setTimeout(() => {
                 try {
-                    player.play();
-                    console.log('Animación actualizada y reproducida para gráfica', graficaId);
+                    player.load(url);
+                    console.log('Animación recargada para gráfica', graficaId);
                 } catch (e) {
-                    console.error('Error al reproducir después de actualizar:', e);
+                    console.log('Load method not available, using src assignment');
                 }
-            }, 300);
+            }, 100);
         }
     }
 }
@@ -716,7 +825,6 @@ function visualizarAnimacion(graficaId) {
         }
         
         console.log('Visualizando gráfica', graficaId);
-        console.log('Datos a visualizar:', jsonData);
         
         // Obtener el player del modal
         const player = document.getElementById('modalLottiePlayer');
@@ -727,15 +835,14 @@ function visualizarAnimacion(graficaId) {
             return;
         }
         
-        // Parar completamente el player antes de cambiar contenido
+        // Detener completamente el player antes de cambiar contenido
         try {
-            player.pause();
             player.stop();
         } catch (e) {
             console.log('Player methods not yet available');
         }
         
-        // Limpiar el src anterior y resetear estados
+        // Limpiar el src anterior
         try {
             if (player.src && player.src.startsWith('blob:')) {
                 URL.revokeObjectURL(player.src);
@@ -745,49 +852,31 @@ function visualizarAnimacion(graficaId) {
             console.log('Could not clean player src');
         }
         
-        // Cargar directamente el JSON en el player 
+        // Crear blob URL con el JSON
+        const jsonString = JSON.stringify(jsonData);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
         console.log('Cargando JSON en modal player');
-        console.log('jsonData:', jsonData);
         
-        // Usar setAnimationData() que es el método directo para cargar JSON
-        if (typeof player.setAnimationData === 'function') {
-            console.log('Usando setAnimationData()');
-            player.setAnimationData(jsonData);
-        } else if (typeof player.load === 'function') {
-            // load() espera una URL, así que crear un Blob primero
-            console.log('Usando load() con Blob URL');
-            const jsonString = JSON.stringify(jsonData);
-            const blob = new Blob([jsonString], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            player.load(url);
-        } else {
-            // Fallback: asignar src directamente
-            const jsonString = JSON.stringify(jsonData);
-            const blob = new Blob([jsonString], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            console.log('Usando src assignment');
-            player.src = url;
-        }
-        
-        // Configurar propiedades de reproducción
+        // Asignar el nuevo src
+        player.src = url;
         player.loop = true;
         player.autoplay = true;
-        
-        // Esperar a que Lottie procese y luego reproducir
-        setTimeout(() => {
-            try {
-                console.log('Iniciando reproducción del modal');
-                player.play();
-            } catch (e) {
-                console.error('Error al reproducir:', e);
-            }
-        }, 600);
-        
-        console.log('Player del modal configurado');
         
         // Mostrar el modal
         const modal = new bootstrap.Modal(document.getElementById('viewModal'));
         modal.show();
+        
+        // Forzar recarga después de mostrar el modal
+        setTimeout(() => {
+            try {
+                player.load(url);
+                console.log('Modal player cargado y reproduciendo');
+            } catch (e) {
+                console.log('Load method not available');
+            }
+        }, 200);
         
         console.log('Modal mostrado');
         
